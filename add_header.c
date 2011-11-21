@@ -174,7 +174,6 @@ TSRemapNewInstance(int argc, char* argv[], void** ih, char* errbuf,
   TSDebug(PLUGIN_NAME, "%s Remap Instance created for '%s', header value pair:"
       "'%s' -> '%s'", PLUGIN_NAME, argv[0], conf->key, conf->value);
 
-
   return TS_SUCCESS;
 }
 
