@@ -1,4 +1,4 @@
-TSXS=tsxs
+TSXS?=tsxs
 
 %.so: %.c
 	$(TSXS) -c $< -o $@
