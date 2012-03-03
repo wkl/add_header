@@ -2,8 +2,8 @@
   add_header.c
   simple add_header(to origin server) remap plugin for Apache Traffic Server 3.0.0+
 
-  this plugin will add the header only when the incomming request doesn't have 
-  duplicate header.
+  this plugin will add the header only when the incomming request doesn't have
+  duplicate header by default, and you can config to remove duplicate and add new one.
 
   Created by wkl <buaawkl@gmail.com> Sep 2011
 */
@@ -14,13 +14,15 @@
 #include <ts/remap.h>
 
 #define PLUGIN_NAME "add_header"
-#define PLUGIN_VERSION "0.1"
+#define PLUGIN_VERSION "0.2"
 
 typedef struct {
   TSMBuffer hdr_bufp;
   TSMLoc hdr_loc;
   char *key;
   char *value;
+  int remove_duplicate; 
+  /* remove existent header with same key (if exist many, remove first one)*/
 } remap_config;
 
 static TSTextLogObject log;
@@ -36,9 +38,16 @@ handle_request(TSHttpTxn txnp, TSRemapRequestInfo* rri, remap_config* conf)
   exist_field_loc = TSMimeHdrFieldFind(bufp, hdr_loc, conf->key, -1);
 
   if (exist_field_loc) {
-    TSDebug(PLUGIN_NAME, "already exist header %s, we will not add", conf->key);
-    TSHandleMLocRelease(bufp, hdr_loc, exist_field_loc);
-    return;
+    TSDebug(PLUGIN_NAME, "already exist header '%s', we will %s.", conf->key,
+      (conf->remove_duplicate ? "remove it and add new one" : "not add")
+    );
+    if (conf->remove_duplicate) {
+      TSMimeHdrFieldDestroy(bufp, hdr_loc, exist_field_loc);
+      TSHandleMLocRelease(bufp, hdr_loc, exist_field_loc);
+    } else {
+      TSHandleMLocRelease(bufp, hdr_loc, exist_field_loc);
+      return;
+    }
   }
 
   our_field_loc = TSMimeHdrFieldGet(conf->hdr_bufp, conf->hdr_loc, 0);
@@ -163,16 +172,28 @@ TSRemapNewInstance(int argc, char* argv[], void** ih, char* errbuf,
 
   TSHandleMLocRelease(conf->hdr_bufp, conf->hdr_loc, field_loc);
 
+  /* check if remove exist header */
+  conf->remove_duplicate = 0;
+  if (argc == 4) {
+    if (strcmp(argv[3], "remove_duplicate") == 0) {
+      conf->remove_duplicate = 1;
+    }
+  }
+
   *ih = (void*)conf;
 
   /* log it */
   if (log) {
     TSTextLogObjectWrite(log, 
-      "%s Remap Instance created for '%s', header value pair: '%s' -> '%s'", 
-      PLUGIN_NAME, argv[0], conf->key, conf->value);
+      "%s Remap Instance created for '%s', header value pair: '%s' -> '%s'"
+      ", will %s.", PLUGIN_NAME, argv[0], conf->key, conf->value, 
+      (conf->remove_duplicate ? "remove duplicate" : "not add if exist duplicate")
+    );
   }
   TSDebug(PLUGIN_NAME, "%s Remap Instance created for '%s', header value pair:"
-      "'%s' -> '%s'", PLUGIN_NAME, argv[0], conf->key, conf->value);
+    "'%s' -> '%s', will %s.", PLUGIN_NAME, argv[0], conf->key, conf->value,
+    (conf->remove_duplicate ? "remove duplicate" : "not add if exist duplicate")
+  );
 
   return TS_SUCCESS;
 }

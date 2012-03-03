@@ -1,7 +1,11 @@
 Simple add_header(to origin server) remap plugin for Apache Traffic Server 3.0.0+
 
-This plugin will add the header only when the incomming request doesn't have duplicate header.
+This plugin will add the header only when the incomming request doesn't have duplicate header by default.
+You can config to remove the duplicate and add new one.
 
 [CONFIG]
 remap.config:
-map  http://example.com  http://real.example.com  @plugin=add_header.so  @pparam=key:value
+map  http://example.com  http://real.example.com  @plugin=add_header.so  @pparam=key:value [@pparam=remove_duplicate]
+
+
+(Free to use.)
