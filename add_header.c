@@ -14,7 +14,7 @@
 #include <ts/remap.h>
 
 #define PLUGIN_NAME "add_header"
-#define PLUGIN_VERSION "0.2"
+#define PLUGIN_VERSION "0.3"
 
 typedef struct {
   TSMBuffer hdr_bufp;
@@ -22,7 +22,7 @@ typedef struct {
   char *key;
   char *value;
   int remove_duplicate; 
-  /* remove existent header with same key (if exist many, remove first one)*/
+  /* remove existent header with same key */
 } remap_config;
 
 static TSTextLogObject log;
@@ -42,8 +42,17 @@ handle_request(TSHttpTxn txnp, TSRemapRequestInfo* rri, remap_config* conf)
       (conf->remove_duplicate ? "remove it and add new one" : "not add")
     );
     if (conf->remove_duplicate) {
-      TSMimeHdrFieldDestroy(bufp, hdr_loc, exist_field_loc);
-      TSHandleMLocRelease(bufp, hdr_loc, exist_field_loc);
+
+      TSMLoc next_exist_loc = 0;
+      while (exist_field_loc) {
+        TSDebug(PLUGIN_NAME, "header found, delete it");
+        next_exist_loc = TSMimeHdrFieldNextDup(bufp, hdr_loc, exist_field_loc);
+        TSMimeHdrFieldDestroy(bufp, hdr_loc, exist_field_loc);
+        TSHandleMLocRelease(bufp, hdr_loc, exist_field_loc);
+        exist_field_loc = next_exist_loc;
+      }
+      if (next_exist_loc) TSHandleMLocRelease(bufp, hdr_loc, next_exist_loc);
+
     } else {
       TSHandleMLocRelease(bufp, hdr_loc, exist_field_loc);
       return;
